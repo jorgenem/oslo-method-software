@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 .depend-rkinz.dep rkinz.o: rkinz.cpp rkinz.h $ROOTSYS/include/TGFrame.h \
   $ROOTSYS/include/TGWindow.h \
   $ROOTSYS/include/TGObject.h \
@@ -94,4 +95,102 @@
   $ROOTSYS/include/TGraphErrors.h \
   $ROOTSYS/include/TGraph.h \
   $ROOTSYS/include/TLatex.h ../kinzlib.h ../ame2003_masses.h \
+=======
+.depend-rkinz.dep rkinz.o: rkinz.cpp rkinz.h /home/jorgenem/tools/root5/include/TGFrame.h \
+  /home/jorgenem/tools/root5/include/TGWindow.h \
+  /home/jorgenem/tools/root5/include/TGObject.h \
+  /home/jorgenem/tools/root5/include/TObject.h \
+  /home/jorgenem/tools/root5/include/Rtypes.h \
+  /home/jorgenem/tools/root5/include/RConfig.h \
+  /home/jorgenem/tools/root5/include/RVersion.h \
+  /home/jorgenem/tools/root5/include/DllImport.h \
+  /home/jorgenem/tools/root5/include/Rtypeinfo.h \
+  /home/jorgenem/tools/root5/include/snprintf.h \
+  /home/jorgenem/tools/root5/include/strlcpy.h \
+  /home/jorgenem/tools/root5/include/TGenericClassInfo.h \
+  /home/jorgenem/tools/root5/include/TSchemaHelper.h \
+  /home/jorgenem/tools/root5/include/TStorage.h \
+  /home/jorgenem/tools/root5/include/TVersionCheck.h \
+  /home/jorgenem/tools/root5/include/Riosfwd.h \
+  /home/jorgenem/tools/root5/include/TBuffer.h \
+  /home/jorgenem/tools/root5/include/GuiTypes.h \
+  /home/jorgenem/tools/root5/include/TGClient.h \
+  /home/jorgenem/tools/root5/include/TString.h \
+  /home/jorgenem/tools/root5/include/TMathBase.h \
+  /home/jorgenem/tools/root5/include/TQObject.h \
+  /home/jorgenem/tools/root5/include/TVirtualX.h \
+  /home/jorgenem/tools/root5/include/TNamed.h \
+  /home/jorgenem/tools/root5/include/TAttLine.h \
+  /home/jorgenem/tools/root5/include/TAttFill.h \
+  /home/jorgenem/tools/root5/include/TAttText.h \
+  /home/jorgenem/tools/root5/include/TAttMarker.h \
+  /home/jorgenem/tools/root5/include/TGDimension.h \
+  /home/jorgenem/tools/root5/include/TGGC.h /home/jorgenem/tools/root5/include/TRefCnt.h \
+  /home/jorgenem/tools/root5/include/TGFont.h \
+  /home/jorgenem/tools/root5/include/TGLayout.h \
+  /home/jorgenem/tools/root5/include/TGString.h \
+  /home/jorgenem/tools/root5/include/TList.h \
+  /home/jorgenem/tools/root5/include/TSeqCollection.h \
+  /home/jorgenem/tools/root5/include/TCollection.h \
+  /home/jorgenem/tools/root5/include/TIterator.h \
+  /home/jorgenem/tools/root5/include/TApplication.h \
+  /home/jorgenem/tools/root5/include/TApplicationImp.h \
+  /home/jorgenem/tools/root5/include/TCanvas.h /home/jorgenem/tools/root5/include/TPad.h \
+  /home/jorgenem/tools/root5/include/TVirtualPad.h \
+  /home/jorgenem/tools/root5/include/TAttPad.h \
+  /home/jorgenem/tools/root5/include/Buttons.h \
+  /home/jorgenem/tools/root5/include/TAttBBox2D.h \
+  /home/jorgenem/tools/root5/include/TPoint.h \
+  /home/jorgenem/tools/root5/include/TAttCanvas.h \
+  /home/jorgenem/tools/root5/include/TCanvasImp.h \
+  /home/jorgenem/tools/root5/include/TDatime.h /home/jorgenem/tools/root5/include/TF1.h \
+  /home/jorgenem/tools/root5/include/TFormula.h \
+  /home/jorgenem/tools/root5/include/TBits.h \
+  /home/jorgenem/tools/root5/include/TObjArray.h \
+  /home/jorgenem/tools/root5/include/Math/ParamFunctor.h \
+  /home/jorgenem/tools/root5/include/TG3DLine.h \
+  /home/jorgenem/tools/root5/include/TGButton.h \
+  /home/jorgenem/tools/root5/include/TGWidget.h \
+  /home/jorgenem/tools/root5/include/WidgetMessageTypes.h \
+  /home/jorgenem/tools/root5/include/TGButtonGroup.h \
+  /home/jorgenem/tools/root5/include/TMap.h \
+  /home/jorgenem/tools/root5/include/THashTable.h \
+  /home/jorgenem/tools/root5/include/TGComboBox.h \
+  /home/jorgenem/tools/root5/include/TGListBox.h \
+  /home/jorgenem/tools/root5/include/TGCanvas.h \
+  /home/jorgenem/tools/root5/include/TGScrollBar.h \
+  /home/jorgenem/tools/root5/include/TGLabel.h /home/jorgenem/tools/root5/include/TH1.h \
+  /home/jorgenem/tools/root5/include/TAxis.h \
+  /home/jorgenem/tools/root5/include/TAttAxis.h \
+  /home/jorgenem/tools/root5/include/TArrayD.h \
+  /home/jorgenem/tools/root5/include/TArray.h \
+  /home/jorgenem/tools/root5/include/TArrayC.h \
+  /home/jorgenem/tools/root5/include/TArrayS.h \
+  /home/jorgenem/tools/root5/include/TArrayI.h \
+  /home/jorgenem/tools/root5/include/TArrayF.h \
+  /home/jorgenem/tools/root5/include/Foption.h \
+  /home/jorgenem/tools/root5/include/TVectorFfwd.h \
+  /home/jorgenem/tools/root5/include/TVectorDfwd.h \
+  /home/jorgenem/tools/root5/include/TFitResultPtr.h \
+  /home/jorgenem/tools/root5/include/TH2.h \
+  /home/jorgenem/tools/root5/include/TMatrixFBasefwd.h \
+  /home/jorgenem/tools/root5/include/TMatrixDBasefwd.h \
+  /home/jorgenem/tools/root5/include/TGNumberEntry.h \
+  /home/jorgenem/tools/root5/include/TGTextEntry.h \
+  /home/jorgenem/tools/root5/include/TGTextBuffer.h \
+  /home/jorgenem/tools/root5/include/TRootEmbeddedCanvas.h \
+  /home/jorgenem/tools/root5/include/TGStatusBar.h \
+  /home/jorgenem/tools/root5/include/TStyle.h \
+  /home/jorgenem/tools/root5/include/TSystem.h \
+  /home/jorgenem/tools/root5/include/TInetAddress.h \
+  /home/jorgenem/tools/root5/include/TTimer.h \
+  /home/jorgenem/tools/root5/include/TSysEvtHandler.h \
+  /home/jorgenem/tools/root5/include/TTime.h \
+  /home/jorgenem/tools/root5/include/ThreadLocalStorage.h \
+  /home/jorgenem/tools/root5/include/RConfigure.h \
+  /home/jorgenem/tools/root5/include/TText.h \
+  /home/jorgenem/tools/root5/include/TGraphErrors.h \
+  /home/jorgenem/tools/root5/include/TGraph.h \
+  /home/jorgenem/tools/root5/include/TLatex.h ../kinzlib.h ../ame2003_masses.h \
+>>>>>>> 5546c58cd9082c9a4f20c99dde68648efe519232
   debug.h
