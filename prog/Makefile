@@ -9,11 +9,7 @@
          LIBS = -lm
          RWLIB = rewr/rewr.a
 	     INSTALL_BIN = install -m 0755
-<<<<<<< HEAD
          INSTALL_DIR = $(UIO_APPLICATIONS)/prog
-=======
-         INSTALL_DIR = /home/jorgenem/tools
->>>>>>> 5546c58cd9082c9a4f20c99dde68648efe519232
          RM = -rm -f
 
 TARGET  = shiva2paw waiting funcfit gameff autofit onemev mama2pc vigs isotrop \
