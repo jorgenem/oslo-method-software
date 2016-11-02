@@ -1,0 +1,5 @@
+20161102: Hacking going on: Copied rewr.f to rewr_JEM.f, modified in the READFILE() function to take in filename as an argument instead of reading from command line. Also made a corresponding makefile for it, call by 
+
+make -f Makefile_JEM
+
+
