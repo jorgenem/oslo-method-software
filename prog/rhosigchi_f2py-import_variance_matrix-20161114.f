@@ -1,5 +1,5 @@
 
-      SUBROUTINE rhosigchi(Fg_in,calib,Eg_min,Ex_min,Ex_max)
+      SUBROUTINE rhosigchi(Fg_in,sFg_in,calib,Eg_min,Ex_min,Ex_max)
 C Read/write stuff (mama)
 CJEM      COMMON/Sp1Dim/rSPEC(2,0:8191),MAXCH
 CJEM      COMMON/Sp2Dim/rMAT(2,0:4095,0:511),APP(512),XDIM,YDIM
@@ -13,15 +13,16 @@ CJEM      COMMON/State/Istatus,ITYPE,IDEST,cal(2,2,2,3),Idim(2,2,2),fname(2,2),c
 C Stuff for the rhosig iteration
       REAL Rho(0:100,0:511),Rhov(0:100,0:511)
       REAL Sig(0:100,0:511),Sigv(0:100,0:511)
-      REAL SumFg(0:511),SumFgv(0:511)
+      REAL SumFg(0:511), SumFgv(0:511)
       REAL Fg(0:511,0:511),FgTeo(0:511,0:511),FgN(0:511,0:511)
       REAL Fgv(0:511,0:511),sFg(0:511,0:511),sFgN(0:511,0:511)
 CJEM  Added some variables and f2py magic lines:
       REAL calib(4)
-      REAL Fg_in(0:511,0:511)
+      REAL Fg_in(0:511,0:511), sFg_in(0:511,0:511)
+      REAL sSum, sFi(0:511), sFf(0:511)
 CJEM  calib contains calibration coefficients in the order (aEg0, aEg1,
 CJEM  aEx0, aEx1), where Ei = aEi1*channel + aEi0
-Cf2py REAL intent(in) :: Fg, calib
+Cf2py REAL intent(in) :: Fg_in, sFg_in, calib
       REAL sRho(0:511),sSig(0:511)
       REAL rRho(0:511),rSig(0:511),Sum,Sum2
       REAL Chi(0:100),a1,a0
@@ -163,24 +164,29 @@ C Compressing (or stretching) along X and Y - axis
       DO i=0,511
          Fi(i)=0.
          Ff(i)=0.
+         sFi(i)=0.
+         sFf(i)=0.
       ENDDO
 
       DO j=0,YDIM-1
          DO i=0,XDIM-1
 CJEM            If(rMAT(IDEST,i,j).LT.eps) rMAT(IDEST,i,j) = eps
-CJEM  Changed rMAT to Fg_in
+CJEM  Changed rMAT to Fg_in (should sFg_in get same tratment?)
             If(Fg_in(i,j).LT.eps) Fg_in(i,j) = eps
 CJEM  Write test:
-            if(Fg_in(i,j).GT.eps) write(6,*)'Fg_in(',i,j,')=',Fg_in(i,j)
+C             if(Fg_in(i,j).GT.eps) write(6,*)'Fg_in(',i,j,')=',Fg_in(i,j)
          ENDDO
       ENDDO
       DO j=0,YDIM-1
          Sum=0.
+         sSum=0.
          DO i=0,XDIM-1
 CJEM            Fi(i)=rMAT(IDEST,i,j)                       ! Fi(i) and Ff(i) real type
 CJEM  Changed rMAT to Fg_in
                Fi(i) = Fg_in(i,j)
+               sFi(i) = sFg_in(i,j)
             Sum=Sum+Fi(i)
+            sSum=sSum+sFi(i)
          ENDDO
          IF(Sum.NE.0.)THEN
             CALL ELASTIC(Fi,Ff,aEg0,aEg1,a0,a1,512,512) ! Modifies spectrum to give  
@@ -189,25 +195,44 @@ CJEM  Changed rMAT to Fg_in
                Fi(i)=0.
             ENDDO
          ENDIF
+         IF(sSum.NE.0)THEN
+            CALL ELASTIC(sFi,sFf,aEg0,aEg1,a0,a1,512,512)
+            DO i=0,XDIM-1                               
+               sFg(i,j)=sFf(i)
+               sFi(i)=0.
+            ENDDO
+         ENDIF
       ENDDO
 
       DO i=0,511
          Fi(i)=0.
          Ff(i)=0.
+         sFi(i)=0.
+         sFf(i)=0.
       ENDDO
 
       DO i=0,XDIM-1                                     ! Y-axis
          Sum=0.
+         sSum=0.
          DO j=0,YDIM-1
             Fi(j)=Fg(i,j)
             Sum=Sum+Fi(j)
+            sFi(j)=sFg(i,j)
+            sSum=sSum+sFi(j)
          ENDDO
          IF(Sum.NE.0.)THEN
             CALL ELASTIC(Fi,Ff,aEx0,aEx1,a0,a1,512,512)
             DO j=0,YDIM-1
                Fg(i,j)=Ff(j)
-               if(Fg(i,j).gt.0) write(6,*)'Fg(',i,j,')=',Fg(i,j)
+C                if(Fg(i,j).gt.0) write(6,*)'Fg(',i,j,')=',Fg(i,j)
                Fi(j)=0.
+            ENDDO
+         ENDIF
+         IF(sSum.NE.0.)THEN
+            CALL ELASTIC(sFi,sFf,aEx0,aEx1,a0,a1,512,512)
+            DO j=0,YDIM-1
+               sFg(i,j)=sFf(j)
+               sFi(j)=0.
             ENDDO
          ENDIF
       ENDDO
@@ -231,6 +256,8 @@ c           write(6,*)xdim,ydim
 CJEM            if(Fg(i,j).gt.0)write(6,*)Fg(i,j)
             IF(Fg(i,j).GT.0..AND.i.GT.imax)imax=i
             IF(Fg(i,j).LE.0.)Fg(i,j)=0             !Delete negative numbers
+CJEM  Also for sFg:
+            IF(sFg(i,j).LE.0.)sFg(i,j)=0             
          ENDDO
       ENDDO
 
@@ -323,17 +350,19 @@ C Minus number of data points in the fit functions (rho and sigma)
 C Finding number of counts in Fg(ig,ix) for each Ex 
       DO ix=jmin,jmax
          SumFg(ix)=0.
-         write(6,*)'igmin=',igmin,'igmax(ix)=',igmax(ix)
+C          write(6,*)'igmin=',igmin,'igmax(ix)=',igmax(ix)
          DO ig=igmin,igmax(ix)
             SumFg(ix)=SumFg(ix)+Fg(ig,ix)
          ENDDO
-         write(6,*)'SumFg(',ix,')=',SumFg(ix) 
+C          write(6,*)'SumFg(',ix,')=',SumFg(ix) 
          DO ig=igmin,igmax(ix)
             IF(SumFg(ix).LE.0.)THEN
                FgN(ig,ix)=0.
+CJEM               sFg(ig,ix)=0.
             ELSE
                FgN(ig,ix)=Fg(ig,ix)/SumFg(ix)
-C                write(6,*)'FgN(',ig,ix,')=',FgN(ig,ix)
+CJEM                write(6,*)'FgN(',ig,ix,')=',FgN(ig,ix)
+CJEM                sFgN(ig,ix)=sFg(ig,ix)/SumFg(ix) ! Normalizing to Fg counts also for variance
             ENDIF
          ENDDO
       ENDDO
@@ -350,46 +379,47 @@ C          write(6,*)'Rho(',iu,')=',Rho(0,iu)
 C        write(6,*)'Sig(',ig,')=',Sig(0,ig)
       ENDDO
  
-C Statistical errors
-C C Calculating statistical error of first generation spectra
+CJEMC Statistical errors
+CJEMC C Calculating statistical error of first generation spectra
       DO ix=jmin,jmax
-         Ex=a0+a1*ix
-         sFmax=0.
-         isFEg=0
-         TotM=MAX(1.,gM(Ex))            !Number of gammas for 1.gen. 
-         BckM=MAX(0.,gM(Ex)-1.)         !Number og gammas from 2.+3.+... gen.
-         DO ig=igmin,igmax(ix)
-C Fg=total-background NaI spectra, factor 2 due to unfolding
-C Total and background error are assumed to be independent from each 
-C other, therefore we use SQRT(tot+bck) instead of SQRT(tot)+SQRT(bck)
-            sFg(ig,ix)=2.*SQRT((TotM+BckM)*Fg(ig,ix))
-            IF(sFg(ig,ix).GT.sFmax)THEN
-               isFEg=ig
-               sFmax=sFg(ig,ix)
-            ENDIF
-         ENDDO
-C The factor 2 due to unfolding is very uncertain, it could be anything...
-C We treat sFg(ig,ix) from Eg=Eg_min up to gamma energy (isFEg) for maximum 
-C uncertainty (sFmax) in a special way (we have high sFg around Eg=0)
-C The Factor 1 is again very uncertain
-         IF(isFEg.GT.igmin)THEN
-            DO ig=igmin,isFEg
-               sFg(ig,ix)=sFmax*(1.+1.*(FLOAT(isFEg)-FLOAT(ig))
-     &            /FLOAT(isFEg))
-            ENDDO
-         ENDIF
-C As a further twist, we will smooth the errors (one-dimensionally) for each
-C first generation spectrum. The smoothing is done over gamma energy intervals 
-C of 3 MeV. This is new for version 1.2 of rhosigchi. Smoothing is performed 
-C on the tmp() array.
-         DO ig=igmin,igmax(ix)
-            tmp(ig)=MAX(2.,sFg(ig,ix))  ! no errors less than 2 counts
-            IF(Fg(ig,ix).GT.0.)THEN
-                xx=ABS(tmp(ig)/Fg(ig,ix))
-                IF(xx.LT.0.10)tmp(ig)=0.10*Fg(ig,ix) ! no errors less than 10 percent (25.01.2007)
-            ENDIF
-         ENDDO
-         ism=NINT(300./a1)! +/-ism defines channel fit-region. Corrected 1500->300 11 feb 2016
+CJEM         Ex=a0+a1*ix
+CJEM         sFmax=0.
+CJEM         isFEg=0
+CJEM         TotM=MAX(1.,gM(Ex))            !Number of gammas for 1.gen. 
+CJEM         BckM=MAX(0.,gM(Ex)-1.)         !Number og gammas from 2.+3.+... gen.
+CJEM         DO ig=igmin,igmax(ix)
+CJEMC Fg=total-background NaI spectra, factor 2 due to unfolding
+CJEMC Total and background error are assumed to be independent from each 
+CJEMC other, therefore we use SQRT(tot+bck) instead of SQRT(tot)+SQRT(bck)
+CJEM            sFg(ig,ix)=2.*SQRT((TotM+BckM)*Fg(ig,ix))
+CJEM            IF(sFg(ig,ix).GT.sFmax)THEN
+CJEM               isFEg=ig
+CJEM               sFmax=sFg(ig,ix)
+CJEM            ENDIF
+CJEM         ENDDO
+CJEMC The factor 2 due to unfolding is very uncertain, it could be anything...
+CJEMC We treat sFg(ig,ix) from Eg=Eg_min up to gamma energy (isFEg) for maximum 
+CJEMC uncertainty (sFmax) in a special way (we have high sFg around Eg=0)
+CJEMC The Factor 1 is again very uncertain
+CJEM         IF(isFEg.GT.igmin)THEN
+CJEM            DO ig=igmin,isFEg
+CJEM               sFg(ig,ix)=sFmax*(1.+1.*(FLOAT(isFEg)-FLOAT(ig))
+CJEM     &            /FLOAT(isFEg))
+CJEM            ENDDO
+CJEM         ENDIF
+CJEMC As a further twist, we will smooth the errors (one-dimensionally) for each
+CJEMC first generation spectrum. The smoothing is done over gamma energy intervals 
+CJEMC of 3 MeV. This is new for version 1.2 of rhosigchi. Smoothing is performed 
+CJEMC on the tmp() array.
+CJEM         DO ig=igmin,igmax(ix)
+CJEM            tmp(ig)=MAX(2.,sFg(ig,ix))  ! no errors less than 2 counts
+CJEM            IF(Fg(ig,ix).GT.0.)THEN
+CJEM                xx=ABS(tmp(ig)/Fg(ig,ix))
+CJEM                IF(xx.LT.0.10)tmp(ig)=0.10*Fg(ig,ix) ! no errors less than 10 percent (25.01.2007)
+CJEM            ENDIF
+CJEM         ENDDO
+CJEM         ism=NINT(300./a1)! +/-ism defines channel fit-region. Corrected 1500->300 11 feb 2016
+
 C The smoothing procedure of Andreas starts, fasten seatbelts...
          DO ig=igmin,igmax(ix)
             istart=ig-ism
@@ -969,7 +999,7 @@ C Varying a point of sigma
                Sig(it,ig)=0.
             ENDIF
          ENDDO
-         if(it.eq.1)write(6,*)'Sig(',ig,')=',Sig(it,ig)
+C          if(it.eq.1)write(6,*)'Sig(',ig,')=',Sig(it,ig)
 C Varying a point of rho
          DO iu=0,jmax-igmin+iu0
             up=0.
@@ -992,7 +1022,7 @@ C Varying a point of rho
             ELSE
                Rho(it,iu)=0.
             ENDIF
-            if(it.eq.1)write(6,*)'Rho(',iu,')=',Rho(it,iu)
+C             if(it.eq.1)write(6,*)'Rho(',iu,')=',Rho(it,iu)
          ENDDO
       ENDDO
       RETURN
