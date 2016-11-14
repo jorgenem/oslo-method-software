@@ -1,5 +1,5 @@
 
-      SUBROUTINE rhosigchi(Fg,Fgv,calib)
+      SUBROUTINE rhosigchi(Fg_in,calib,Eg_min,Ex_min,Ex_max)
 C Read/write stuff (mama)
 CJEM      COMMON/Sp1Dim/rSPEC(2,0:8191),MAXCH
 CJEM      COMMON/Sp2Dim/rMAT(2,0:4095,0:511),APP(512),XDIM,YDIM
@@ -8,7 +8,7 @@ CJEM      COMMON/Sp2Dim/rMAT(2,0:4095,0:511),APP(512),XDIM,YDIM
 CJEM      COMMON/State/Istatus,ITYPE,IDEST,cal(2,2,2,3),Idim(2,2,2),fname(2,2),comm(2,2)
       CHARACTER fname*8,comm*60,comment*60
       CHARACTER outfile*20,APP*4
-CJEM      COMMON/iter/jmin,jmax,igmin,nit,igmax(0:511),iu0
+      COMMON/iter/jmin,jmax,igmin,nit,igmax(0:511),iu0
 
 C Stuff for the rhosig iteration
       REAL Rho(0:100,0:511),Rhov(0:100,0:511)
@@ -18,16 +18,18 @@ C Stuff for the rhosig iteration
       REAL Fgv(0:511,0:511),sFg(0:511,0:511),sFgN(0:511,0:511)
 CJEM  Added some variables and f2py magic lines:
       REAL calib(4)
+      REAL Fg_in(0:511,0:511)
 CJEM  calib contains calibration coefficients in the order (aEg0, aEg1,
 CJEM  aEx0, aEx1), where Ei = aEi1*channel + aEi0
-Cf2py REAL intent(in) :: Fg, Fgv, calib
+Cf2py REAL intent(in) :: Fg, calib
       REAL sRho(0:511),sSig(0:511)
       REAL rRho(0:511),rSig(0:511),Sum,Sum2
       REAL Chi(0:100),a1,a0
-      REAL Ex_min,Ex_max,Emr
+      REAL Eg_min,Ex_min,Ex_max,Emr
+Cf2py REAL intent(in) :: Eg_min, Ex_min, Ex_max
       REAL Ex,dE_p,dE_g1MeV,dE_g8MeV,dE_g
       REAL egmax(0:511)
-      INTEGER igmax(0:511)
+CJEM      INTEGER igmax(0:511)
       INTEGER time,nunc,degrees,deg,jmax,ix,ig,iu,iemr,step,in0
       INTEGER ism,istart,istop,ll,i,j
       REAL*8 xfit(1:512),yfit(1:512),y0,y1,y2,x0,x1,x2,x3,x4,d0,d1,d2,d3 !REAL->REAL*8
@@ -65,9 +67,9 @@ C Fitting with error weighting
 C Finding a better parametrization of the strength function
 C Initializing parameter values
       nit=50                  ! Number of iterations
-      Ex_min=4000.0           ! Default lower Ex for 1.gen. spec.
-      Ex_max=8000.0           ! Default higher Ex for 1.gen. spec.
-      Eg_min=1000             ! Default lowest gamma energy
+CJEM      Ex_min=4000.0           ! Default lower Ex for 1.gen. spec.
+CJEM       Ex_max=8000.0           ! Default higher Ex for 1.gen. spec.
+CJEM       Eg_min=1000             ! Default lowest gamma energy
       nunc=100                ! Number of extractions
       dE_p = 150.             ! Particle resolution
       dE_g1MeV = 60.          ! NaI resolution at 1 MeV
@@ -99,8 +101,11 @@ CJEM      IDEST = 2
 CJEM      CALL READFILE("fgvar-jem-20161011-Nexbins196-Nstat500.m")
 CJEM      IDEST = 1
 CJEM  done loading fgv    
-      IF(XDIM.GT.512)XDIM=512
-      IF(YDIM.GT.512)YDIM=512
+CJEM      IF(XDIM.GT.512)XDIM=512
+CJEM      IF(YDIM.GT.512)YDIM=512
+CJEM  20161114: Replaced the two lines above with hard-coded values
+      XDIM = 512
+      YDIM = 512
 CTODO 20161104
 CTODO replace cal() by calibrations input through rhosigchi() subroutine
 CTODO 
@@ -112,6 +117,8 @@ CJEM  read from input argument. Specification: Ei = aEi1*channel + aEi0
       aEg1 = calib(2)
       aEx0 = calib(3)
       aEx1 = calib(4)
+
+      write(6,*)'Calibration coefficients: ',aEg0, aEg1, aEx0, aEx1
 
 CJEM      bx=cal(1,IDEST,1,1)+cal(1,IDEST,1,2)+cal(1,IDEST,1,3)
 CJEM      by=cal(1,IDEST,2,1)+cal(1,IDEST,2,2)+cal(1,IDEST,2,3)
@@ -130,6 +137,7 @@ CJEM      ENDIF
       multiple=INT((120./a1)+0.5)
       IF(a1.GT.150.)multiple=1
       a1=FLOAT(multiple)*a1
+      write(6,*)'multiple = ', multiple, 'a1 = ', a1
 C An energy that was in the middle of a channel, shall still be in the
 C middle of a channel after change of calibration
       Eold=aEx0+aEx1*0                                  !Choosing old channel 0
@@ -142,6 +150,8 @@ C Now calculating max energy for NaI to cover resolution. Max is 800 keV
         Ex = a0 + j*a1
         dE_g = dE_g1MeV + ((dE_g8MeV-dE_g1MeV)/(8000.-1000.))*(Ex-1000.)
         egmax(j) = SQRT(dE_g*dE_g + dE_p*dE_p)
+CJEM  Added write for debug:
+CJEM        write(6,*)'j = ',j,' egmax(j) = ',egmax(j)
         IF(egmax(j).GT.600.)egmax(j)=600.
         IF(egmax(j).LT.200.)egmax(j)=200.
         igmax(j) = j + INT((egmax(j)/a1)+0.5)
@@ -150,50 +160,57 @@ C Now calculating max energy for NaI to cover resolution. Max is 800 keV
       ENDDO
 
 C Compressing (or stretching) along X and Y - axis
-C       DO i=0,511
-C          Fi(i)=0.
-C          Ff(i)=0.
-C       ENDDO
+      DO i=0,511
+         Fi(i)=0.
+         Ff(i)=0.
+      ENDDO
 
-C       DO j=0,YDIM-1
-C          DO i=0,XDIM-1
-C             If(rMAT(IDEST,i,j).LT.eps) rMAT(IDEST,i,j) = eps
-C          ENDDO
-C       ENDDO
-C       DO j=0,YDIM-1
-C          Sum=0.
-C          DO i=0,XDIM-1
-C             Fi(i)=rMAT(IDEST,i,j)                       ! Fi(i) and Ff(i) real type
-C             Sum=Sum+Fi(i)
-C          ENDDO
-C          IF(Sum.NE.0.)THEN
-C             CALL ELASTIC(Fi,Ff,aEg0,aEg1,a0,a1,512,512) ! Modifies spectrum to give  
-C             DO i=0,XDIM-1                               ! calibration a0 and a1
-C                Fg(i,j)=Ff(i)
-C                Fi(i)=0.
-C             ENDDO
-C          ENDIF
-C       ENDDO
+      DO j=0,YDIM-1
+         DO i=0,XDIM-1
+CJEM            If(rMAT(IDEST,i,j).LT.eps) rMAT(IDEST,i,j) = eps
+CJEM  Changed rMAT to Fg_in
+            If(Fg_in(i,j).LT.eps) Fg_in(i,j) = eps
+CJEM  Write test:
+            if(Fg_in(i,j).GT.eps) write(6,*)'Fg_in(',i,j,')=',Fg_in(i,j)
+         ENDDO
+      ENDDO
+      DO j=0,YDIM-1
+         Sum=0.
+         DO i=0,XDIM-1
+CJEM            Fi(i)=rMAT(IDEST,i,j)                       ! Fi(i) and Ff(i) real type
+CJEM  Changed rMAT to Fg_in
+               Fi(i) = Fg_in(i,j)
+            Sum=Sum+Fi(i)
+         ENDDO
+         IF(Sum.NE.0.)THEN
+            CALL ELASTIC(Fi,Ff,aEg0,aEg1,a0,a1,512,512) ! Modifies spectrum to give  
+            DO i=0,XDIM-1                               ! calibration a0 and a1
+               Fg(i,j)=Ff(i)
+               Fi(i)=0.
+            ENDDO
+         ENDIF
+      ENDDO
 
-C       DO i=0,511
-C          Fi(i)=0.
-C          Ff(i)=0.
-C       ENDDO
+      DO i=0,511
+         Fi(i)=0.
+         Ff(i)=0.
+      ENDDO
 
-C       DO i=0,XDIM-1                                     ! Y-axis
-C          Sum=0.
-C          DO j=0,YDIM-1
-C             Fi(j)=Fg(i,j)
-C             Sum=Sum+Fi(j)
-C          ENDDO
-C          IF(Sum.NE.0.)THEN
-C             CALL ELASTIC(Fi,Ff,aEx0,aEx1,a0,a1,512,512)
-C             DO j=0,YDIM-1
-C                Fg(i,j)=Ff(j)
-C                Fi(j)=0.
-C             ENDDO
-C          ENDIF
-C       ENDDO
+      DO i=0,XDIM-1                                     ! Y-axis
+         Sum=0.
+         DO j=0,YDIM-1
+            Fi(j)=Fg(i,j)
+            Sum=Sum+Fi(j)
+         ENDDO
+         IF(Sum.NE.0.)THEN
+            CALL ELASTIC(Fi,Ff,aEx0,aEx1,a0,a1,512,512)
+            DO j=0,YDIM-1
+               Fg(i,j)=Ff(j)
+               if(Fg(i,j).gt.0) write(6,*)'Fg(',i,j,')=',Fg(i,j)
+               Fi(j)=0.
+            ENDDO
+         ENDIF
+      ENDDO
 
 C Replacing negative counts with 0 and finding dimension of Fg matrix
 C      XDIM=INT(FLOAT(XDIM)*ABS(aEg1/a1)+0.5) + iu0
@@ -202,11 +219,16 @@ c      YDIM=INT((ABS((FLOAT(YDIM) * aEx1 + aEx0 - a0))/ABS(a1)) + 0.5)
 c      XDIM=YDIM + iu0
       XDIM=INT((ABS((FLOAT(XDIM) * aEg1 + aEg0 -a0))/ABS(a1))+0.5)+ iu0
       YDIM=INT((ABS((FLOAT(YDIM) * aEx1 + aEx0 - a0))/ABS(a1)) + 0.5)
+CJEM  20161114: Hard-coded XDIM and YDIM since I'm always sending in 512x512 stretched and ready
+CJEM      XDIM = 512
+CJEM      YDIM = 512
+      write(6,*)'XDIM =',XDIM,' YDIM = ',YDIM
 
 c           write(6,*)xdim,ydim
       imax=10
       DO j=0,YDIM
          DO i=0,XDIM
+CJEM            if(Fg(i,j).gt.0)write(6,*)Fg(i,j)
             IF(Fg(i,j).GT.0..AND.i.GT.imax)imax=i
             IF(Fg(i,j).LE.0.)Fg(i,j)=0             !Delete negative numbers
          ENDDO
@@ -215,112 +237,33 @@ c           write(6,*)xdim,ydim
       imax=MIN(imax,XDIM)
       Eg_limit = a0+a1*imax
 
-CJEM  ==============================================
-CJEM  WARNING -- SUPER HACKY: Replicating the above loops to fill sFg also 
-CJEM
-CJEM           START
-CJEM
-CJEM  ==============================================
-
-C CJEM   Changing IDEST to get fg variance spectrum
-C       IDEST = 2
-C C Compressing (or stretching) along X and Y - axis
-C       DO i=0,511
-C          Fi(i)=0.
-C          Ff(i)=0.
-C       ENDDO
-
-C       DO j=0,YDIM-1
-C          DO i=0,XDIM-1
-C             If(rMAT(IDEST,i,j).LT.eps) rMAT(IDEST,i,j) = eps
-C          ENDDO
-C       ENDDO
-C       DO j=0,YDIM-1
-C          Sum=0.
-C          DO i=0,XDIM-1
-C             Fi(i)=rMAT(IDEST,i,j)                       ! Fi(i) and Ff(i) real type
-C             Sum=Sum+Fi(i)
-C          ENDDO
-C          IF(Sum.NE.0.)THEN
-C             CALL ELASTIC(Fi,Ff,aEg0,aEg1,a0,a1,512,512) ! Modifies spectrum to give  
-C             DO i=0,XDIM-1                               ! calibration a0 and a1
-C                sFg(i,j)=Ff(i)
-C                Fi(i)=0.
-C             ENDDO
-C          ENDIF
-C       ENDDO
-
-C       DO i=0,511
-C          Fi(i)=0.
-C          Ff(i)=0.
-C       ENDDO
-
-C       DO i=0,XDIM-1                                     ! Y-axis
-C          Sum=0.
-C          DO j=0,YDIM-1
-C             Fi(j)=Fg(i,j)
-C             Sum=Sum+Fi(j)
-C          ENDDO
-C          IF(Sum.NE.0.)THEN
-C             CALL ELASTIC(Fi,Ff,aEx0,aEx1,a0,a1,512,512)
-C             DO j=0,YDIM-1
-C                sFg(i,j)=Ff(j)
-C                Fi(j)=0.
-C             ENDDO
-C          ENDIF
-C       ENDDO
-
-C C Replacing negative counts with 0 and finding dimension of Fg matrix
-C C      XDIM=INT(FLOAT(XDIM)*ABS(aEg1/a1)+0.5) + iu0
-C c      YDIM=INT(FLOAT(YDIM)*ABS(aEx1/a1)+0.5)
-C c      YDIM=INT((ABS((FLOAT(YDIM) * aEx1 + aEx0 - a0))/ABS(a1)) + 0.5)
-C c      XDIM=YDIM + iu0
-C       XDIM=INT((ABS((FLOAT(XDIM) * aEg1 + aEg0 - a0))/ABS(a1)) + 0.5) + iu0
-C       YDIM=INT((ABS((FLOAT(YDIM) * aEx1 + aEx0 - a0))/ABS(a1)) + 0.5)
-
-C c           write(6,*)xdim,ydim
-C       imax=10
-C       DO j=0,YDIM
-C          DO i=0,XDIM
-C             IF(Fg(i,j).GT.0..AND.i.GT.imax)imax=i
-C             IF(Fg(i,j).LE.0.)Fg(i,j)=0             !Delete negative numbers
-C          ENDDO
-C       ENDDO
-
-
-C       IDEST = 1
-CJEM  ==============================================
-CJEM              STOP filling sFg(i,j)
-CJEM  ==============================================
-
-
-
 
 
 
 
 c      write(6,*)'imax,XDIM, Eglimit',imax,XDIM, Eg_limit
 
-      OPEN(23,FILE='input.rsg',STATUS='old',ERR=666)
-      READ(23,*,END=666,ERR=666)Eg_min,Ex_min,Ex_max
-      GO TO 777
- 666  WRITE(6,*)'Warning: no input.rsg file found, defaults taken'
- 777  CLOSE(23)
+CJEM       OPEN(23,FILE='input.rsg',STATUS='old',ERR=666)
+CJEM       READ(23,*,END=666,ERR=666)Eg_min,Ex_min,Ex_max
+CJEM       GO TO 777
+CJEM  666  WRITE(6,*)'Warning: no input.rsg file found, defaults taken'
+CJEM  777  CLOSE(23)
 
 C Input some parameters from keyboard
 C Input lower limit for gammas used in the extraction
       igmin=INT(((Eg_min-a0)/a1)+0.5)
       Eg_min=a0+a1*igmin
-      WRITE(6,10)Eg_min
- 10   FORMAT('Lower limit of gamma energy (keV)      <',F7.1,'>:',$)
+CJEM      WRITE(6,10)Eg_min
+CJEM 10   FORMAT('Lower limit of gamma energy (keV)      <',F7.1,'>:',$)
 CJEM     CALL READF(5,Eg_min)
+
       igmin=INT(((Eg_min-a0)/a1)+0.5)
       Eg_min=a0+a1*igmin
       jmin=INT(((Ex_min-a0)/a1)+0.5)
       jmin=MAX(jmin,igmin)
       Ex_min=a0+a1*jmin
-      WRITE(6,11)Ex_min
- 11   FORMAT('Lower limit of excitation energy (keV) <',F7.1,'>:',$)
+CJEM      WRITE(6,11)Ex_min
+CJEM 11   FORMAT('Lower limit of excitation energy (keV) <',F7.1,'>:',$)
 CJEM      CALL READF(5,Ex_min)
       jmin=INT(((Ex_min-a0)/a1)+0.5)
       Ex_min=a0+a1*jmin
@@ -329,11 +272,11 @@ CJEM      CALL READF(5,Ex_min)
          Ex_min=Eg_min
       ENDIF
 
-      jmax=INT(((Ex_max-a0)/a1)+0.5)
-      jmax =MIN(jmax,YDIM)
-      Ex_max=a0+a1*jmax
-      WRITE(6,12)Ex_max
- 12   FORMAT('Upper limit of excitation energy (keV) <',F7.1,'>:',$)
+CJEM       jmax=INT(((Ex_max-a0)/a1)+0.5)
+CJEM       jmax =MIN(jmax,YDIM)
+CJEM       Ex_max=a0+a1*jmax
+CJEM      WRITE(6,12)Ex_max
+CJEM 12   FORMAT('Upper limit of excitation energy (keV) <',F7.1,'>:',$)
 CJEM      CALL READF(5,Ex_max)
       jmax=INT(((Ex_max-a0)/a1)+0.5)
       jmax=MIN(jmax,YDIM)
@@ -380,55 +323,61 @@ C Minus number of data points in the fit functions (rho and sigma)
 C Finding number of counts in Fg(ig,ix) for each Ex 
       DO ix=jmin,jmax
          SumFg(ix)=0.
+         write(6,*)'igmin=',igmin,'igmax(ix)=',igmax(ix)
          DO ig=igmin,igmax(ix)
-            SumFg(ix)=SumFg(ix)+Fg(ig,ix) 
+            SumFg(ix)=SumFg(ix)+Fg(ig,ix)
          ENDDO
+         write(6,*)'SumFg(',ix,')=',SumFg(ix) 
          DO ig=igmin,igmax(ix)
             IF(SumFg(ix).LE.0.)THEN
                FgN(ig,ix)=0.
             ELSE
                FgN(ig,ix)=Fg(ig,ix)/SumFg(ix)
+C                write(6,*)'FgN(',ig,ix,')=',FgN(ig,ix)
             ENDIF
          ENDDO
       ENDDO
 C Start value for Rho and Sig
       DO iu=0,jmax-igmin + iu0
          Rho(0,iu)=1.
+C          write(6,*)'Rho(',iu,')=',Rho(0,iu)
       ENDDO
       DO ig=igmin,igmax(jmax)
          Sig(0,ig)=0.
          DO ix=MAX(jmin,2*ig-igmax(ig)),jmax  !We are adding for one ig along ix. But when ig>ix
             Sig(0,ig)=Sig(0,ig)+FgN(ig,ix)    !we start from 2*ig-igmax(ix)
          ENDDO
+C        write(6,*)'Sig(',ig,')=',Sig(0,ig)
       ENDDO
  
 C Statistical errors
 C C Calculating statistical error of first generation spectra
       DO ix=jmin,jmax
-C          Ex=a0+a1*ix
-C          sFmax=0.
-C          isFEg=0
-C          TotM=MAX(1.,gM(Ex))            !Number of gammas for 1.gen. 
-C          BckM=MAX(0.,gM(Ex)-1.)         !Number og gammas from 2.+3.+... gen.
-C          DO ig=igmin,igmax(ix)
-C C Fg=total-background NaI spectra, factor 2 due to unfolding
-C C Total and background error are assumed to be independent from each 
-C C other, therefore we use SQRT(tot+bck) instead of SQRT(tot)+SQRT(bck)
-C             sFg(ig,ix)=2.*SQRT((TotM+BckM)*Fg(ig,ix))
-C             IF(sFg(ig,ix).GT.sFmax)THEN
-C                isFEg=ig
-C                sFmax=sFg(ig,ix)
-C             ENDIF
-C          ENDDO
-C C The factor 2 due to unfolding is very uncertain, it could be anything...
-C C We treat sFg(ig,ix) from Eg=Eg_min up to gamma energy (isFEg) for maximum 
-C C uncertainty (sFmax) in a special way (we have high sFg around Eg=0)
-C C The Factor 1 is again very uncertain
-C          IF(isFEg.GT.igmin)THEN
-C             DO ig=igmin,isFEg
-C                sFg(ig,ix)=sFmax*(1.+1.*(FLOAT(isFEg)-FLOAT(ig))/FLOAT(isFEg))
-C             ENDDO
-C          ENDIF
+         Ex=a0+a1*ix
+         sFmax=0.
+         isFEg=0
+         TotM=MAX(1.,gM(Ex))            !Number of gammas for 1.gen. 
+         BckM=MAX(0.,gM(Ex)-1.)         !Number og gammas from 2.+3.+... gen.
+         DO ig=igmin,igmax(ix)
+C Fg=total-background NaI spectra, factor 2 due to unfolding
+C Total and background error are assumed to be independent from each 
+C other, therefore we use SQRT(tot+bck) instead of SQRT(tot)+SQRT(bck)
+            sFg(ig,ix)=2.*SQRT((TotM+BckM)*Fg(ig,ix))
+            IF(sFg(ig,ix).GT.sFmax)THEN
+               isFEg=ig
+               sFmax=sFg(ig,ix)
+            ENDIF
+         ENDDO
+C The factor 2 due to unfolding is very uncertain, it could be anything...
+C We treat sFg(ig,ix) from Eg=Eg_min up to gamma energy (isFEg) for maximum 
+C uncertainty (sFmax) in a special way (we have high sFg around Eg=0)
+C The Factor 1 is again very uncertain
+         IF(isFEg.GT.igmin)THEN
+            DO ig=igmin,isFEg
+               sFg(ig,ix)=sFmax*(1.+1.*(FLOAT(isFEg)-FLOAT(ig))
+     &            /FLOAT(isFEg))
+            ENDDO
+         ENDIF
 C As a further twist, we will smooth the errors (one-dimensionally) for each
 C first generation spectrum. The smoothing is done over gamma energy intervals 
 C of 3 MeV. This is new for version 1.2 of rhosigchi. Smoothing is performed 
@@ -507,6 +456,7 @@ C Normalizing sFg(Eg,Ex)
                sFgN(ig,ix)=0.
             ELSE
                sFgN(ig,ix)=sFg(ig,ix)/SumFg(ix)
+C                write(6,*)'sFgN(',ig,ix,')=',sFgN(ig,ix)
             ENDIF
          ENDDO
       ENDDO
@@ -1019,6 +969,7 @@ C Varying a point of sigma
                Sig(it,ig)=0.
             ENDIF
          ENDDO
+         if(it.eq.1)write(6,*)'Sig(',ig,')=',Sig(it,ig)
 C Varying a point of rho
          DO iu=0,jmax-igmin+iu0
             up=0.
@@ -1041,6 +992,7 @@ C Varying a point of rho
             ELSE
                Rho(it,iu)=0.
             ENDIF
+            if(it.eq.1)write(6,*)'Rho(',iu,')=',Rho(it,iu)
          ENDDO
       ENDDO
       RETURN
