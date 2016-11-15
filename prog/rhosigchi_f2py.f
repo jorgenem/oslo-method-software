@@ -105,7 +105,6 @@ C     Calculate new calibration coefficients to get 120 keV bins:
       multiple=INT((120./a1)+0.5)
       IF(a1.GT.150.)multiple=1
       a1=FLOAT(multiple)*a1
-      write(6,*)'multiple = ', multiple, 'a1 = ', a1
 C An energy that was in the middle of a channel, shall still be in the
 C middle of a channel after change of calibration
       Eold=aEx0+aEx1*0                                  !Choosing old channel 0
@@ -260,18 +259,7 @@ C Calculating number of points in the matrix to be fitted
       DO ix=jmin,jmax
         degrees = degrees + (igmax(ix) - igmin)
       ENDDO
-      write(6,*)'Number of data points   ',degrees
-C Minus number of data points in the fit functions (rho and sigma)
-      degrees=degrees-(jmax-jmin+1) - (igmax(jmax)-igmin+1)
-      write(6,*)'DOF, data points-rho-sig',degrees
 
-      WRITE(6,14)a0,a1,imax+1,jmax+1,Ex_min,Ex_max,a0,Emr,Eg_min,Eg_max
- 14   FORMAT('Common calibration is a0=',F7.2,'keV and a1=',F7.2,
-     &'keV/ch',
-     + /,'Dimension is',I4,' x',I4, 
-     + /,'excitation energy region is ',F6.0,'keV to ',F7.0,'keV',
-     + /,'rho extracted from ',F6.0,'keV to ',F7.0,'keV',
-     + /,'sig extracted from ',F6.0,'keV to ',F7.0,'keV')
 C Finding number of counts in Fg(ig,ix) for each Ex 
       DO ix=jmin,jmax
          SumFg(ix)=0.
@@ -492,14 +480,12 @@ CJEM  read from input argument. Specification: Ei = aEi1*channel + aEi0
       aEx0 = calib(3)
       aEx1 = calib(4)
 
-      write(6,*)'Calibration coefficients: ',aEg0, aEg1, aEx0, aEx1
 
 
       a1=ABS(aEx1)
       multiple=INT((120./a1)+0.5)
       IF(a1.GT.150.)multiple=1
       a1=FLOAT(multiple)*a1
-      write(6,*)'multiple = ', multiple, 'a1 = ', a1
 C An energy that was in the middle of a channel, shall still be in the
 C middle of a channel after change of calibration
       Eold=aEx0+aEx1*0                                  !Choosing old channel 0
@@ -568,7 +554,6 @@ C Compressing (or stretching) along X and Y - axis
 C Replacing negative counts with 0 and finding dimension of Fg matrix
       XDIM=INT((ABS((FLOAT(XDIM) * aEg1 + aEg0 -a0))/ABS(a1))+0.5)+ iu0
       YDIM=INT((ABS((FLOAT(YDIM) * aEx1 + aEx0 - a0))/ABS(a1)) + 0.5)
-      write(6,*)'XDIM =',XDIM,' YDIM = ',YDIM
 
       imax=10
       DO j=0,YDIM
@@ -580,11 +565,6 @@ C Replacing negative counts with 0 and finding dimension of Fg matrix
 
       imax=MIN(imax,XDIM)
       Eg_limit = a0+a1*imax
-
-
-
-
-
 
       igmin=INT(((Eg_min-a0)/a1)+0.5)
       Eg_min=a0+a1*igmin
