@@ -1975,7 +1975,8 @@ C The probabilities for full energy, Compton, single, double and annih. made:
 210   FORMAT('Calibration (a0,a1)=',F8.1,F9.3,'  FWHM=',F7.1,/)
 
       iStep=1
-      IF(RDIM.GT.50)iStep=RDIM/50                  !steps for output
+CJEM 20161128 commenting out the line below in order to get the full energy list in resp.dat
+CJEM      IF(RDIM.GT.50)iStep=RDIM/50                  !steps for output
       WRITE(25,*)'Egam(keV) FWHM(keV) EffTot  Photo  Compton Single  Double   Annih'
       DO i=0,RDIM-1
         Egam=a0+i*a1
