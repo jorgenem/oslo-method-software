@@ -17,11 +17,7 @@ endif
           RM = rm -f
 
  INSTALL_BIN = install -m 0755
-<<<<<<< HEAD
  INSTALL_DIR = $(UIO_APPLICATIONS)/prog
-=======
- INSTALL_DIR = /home/jorgenem/tools
->>>>>>> 5546c58cd9082c9a4f20c99dde68648efe519232
 
 ifeq ($(BASEDIR),)
 $(error This file must be included from another 'Makefile' with BASEDIR set)

@@ -85,12 +85,14 @@ C Initializing some vectors and matrices
 C Reading first-generation mama-matrix
       IDEST=1
       ITYPE=3
-      WRITE(6,*)'Please, answer 1 and the name of your input first-'
-      WRITE(6,*)'generation matrix in the two next questions... '
-      CALL READFILE("firstgen-jem-20161011-Nexbins196-Nstat500.m", IDEST)
-C     JEM added to load fg variance spectrum into the other rMAT channel:
+C       WRITE(6,*)'Please, answer 1 and the name of your input first-'
+C       WRITE(6,*)'generation matrix in the two next questions... '
+      CALL READFILE("firstgen-jem-20161011-Nexbins196-Nstat500.m")
+CJEM   added to load fg variance (fgv) spectrum into the other rMAT channel:
       IDEST = 2
-      CALL READFILE("fgvar-jem-20161011-Nexbins196-Nstat500.m", IDEST)
+      CALL READFILE("fgvar-jem-20161011-Nexbins196-Nstat500.m")
+      IDEST = 1
+CJEM  done loading fgv    
       IF(XDIM.GT.512)XDIM=512
       IF(YDIM.GT.512)YDIM=512
       bx=cal(1,IDEST,1,1)+cal(1,IDEST,1,2)+cal(1,IDEST,1,3)
@@ -195,6 +197,90 @@ c           write(6,*)xdim,ydim
       imax=MIN(imax,XDIM)
       Eg_limit = a0+a1*imax
 
+CJEM  ==============================================
+CJEM  WARNING -- SUPER HACKY: Replicating the above loops to fill sFg also 
+CJEM
+CJEM           START
+CJEM
+CJEM  ==============================================
+
+CJEM   Changing IDEST to get fg variance spectrum
+      IDEST = 2
+C Compressing (or stretching) along X and Y - axis
+      DO i=0,511
+         Fi(i)=0.
+         Ff(i)=0.
+      ENDDO
+
+      DO j=0,YDIM-1
+         DO i=0,XDIM-1
+            If(rMAT(IDEST,i,j).LT.eps) rMAT(IDEST,i,j) = eps
+         ENDDO
+      ENDDO
+      DO j=0,YDIM-1
+         Sum=0.
+         DO i=0,XDIM-1
+            Fi(i)=rMAT(IDEST,i,j)                       ! Fi(i) and Ff(i) real type
+            Sum=Sum+Fi(i)
+         ENDDO
+         IF(Sum.NE.0.)THEN
+            CALL ELASTIC(Fi,Ff,aEg0,aEg1,a0,a1,512,512) ! Modifies spectrum to give  
+            DO i=0,XDIM-1                               ! calibration a0 and a1
+               sFg(i,j)=Ff(i)
+               Fi(i)=0.
+            ENDDO
+         ENDIF
+      ENDDO
+
+      DO i=0,511
+         Fi(i)=0.
+         Ff(i)=0.
+      ENDDO
+
+      DO i=0,XDIM-1                                     ! Y-axis
+         Sum=0.
+         DO j=0,YDIM-1
+            Fi(j)=Fg(i,j)
+            Sum=Sum+Fi(j)
+         ENDDO
+         IF(Sum.NE.0.)THEN
+            CALL ELASTIC(Fi,Ff,aEx0,aEx1,a0,a1,512,512)
+            DO j=0,YDIM-1
+               sFg(i,j)=Ff(j)
+               Fi(j)=0.
+            ENDDO
+         ENDIF
+      ENDDO
+
+C Replacing negative counts with 0 and finding dimension of Fg matrix
+C      XDIM=INT(FLOAT(XDIM)*ABS(aEg1/a1)+0.5) + iu0
+c      YDIM=INT(FLOAT(YDIM)*ABS(aEx1/a1)+0.5)
+c      YDIM=INT((ABS((FLOAT(YDIM) * aEx1 + aEx0 - a0))/ABS(a1)) + 0.5)
+c      XDIM=YDIM + iu0
+      XDIM=INT((ABS((FLOAT(XDIM) * aEg1 + aEg0 - a0))/ABS(a1)) + 0.5) + iu0
+      YDIM=INT((ABS((FLOAT(YDIM) * aEx1 + aEx0 - a0))/ABS(a1)) + 0.5)
+
+c           write(6,*)xdim,ydim
+      imax=10
+      DO j=0,YDIM
+         DO i=0,XDIM
+            IF(Fg(i,j).GT.0..AND.i.GT.imax)imax=i
+            IF(Fg(i,j).LE.0.)Fg(i,j)=0             !Delete negative numbers
+         ENDDO
+      ENDDO
+
+
+      IDEST = 1
+CJEM  ==============================================
+CJEM              STOP filling sFg(i,j)
+CJEM  ==============================================
+
+
+
+
+
+
+
 c      write(6,*)'imax,XDIM, Eglimit',imax,XDIM, Eg_limit
 
       OPEN(23,FILE='input.rsg',STATUS='old',ERR=666)
@@ -297,32 +383,32 @@ C Start value for Rho and Sig
       ENDDO
  
 C Statistical errors
-C Calculating statistical error of first generation spectra
+C C Calculating statistical error of first generation spectra
       DO ix=jmin,jmax
-         Ex=a0+a1*ix
-         sFmax=0.
-         isFEg=0
-         TotM=MAX(1.,gM(Ex))            !Number of gammas for 1.gen. 
-         BckM=MAX(0.,gM(Ex)-1.)         !Number og gammas from 2.+3.+... gen.
-         DO ig=igmin,igmax(ix)
-C Fg=total-background NaI spectra, factor 2 due to unfolding
-C Total and background error are assumed to be independent from each 
-C other, therefore we use SQRT(tot+bck) instead of SQRT(tot)+SQRT(bck)
-            sFg(ig,ix)=2.*SQRT((TotM+BckM)*Fg(ig,ix))
-            IF(sFg(ig,ix).GT.sFmax)THEN
-               isFEg=ig
-               sFmax=sFg(ig,ix)
-            ENDIF
-         ENDDO
-C The factor 2 due to unfolding is very uncertain, it could be anything...
-C We treat sFg(ig,ix) from Eg=Eg_min up to gamma energy (isFEg) for maximum 
-C uncertainty (sFmax) in a special way (we have high sFg around Eg=0)
-C The Factor 1 is again very uncertain
-         IF(isFEg.GT.igmin)THEN
-            DO ig=igmin,isFEg
-               sFg(ig,ix)=sFmax*(1.+1.*(FLOAT(isFEg)-FLOAT(ig))/FLOAT(isFEg))
-            ENDDO
-         ENDIF
+C          Ex=a0+a1*ix
+C          sFmax=0.
+C          isFEg=0
+C          TotM=MAX(1.,gM(Ex))            !Number of gammas for 1.gen. 
+C          BckM=MAX(0.,gM(Ex)-1.)         !Number og gammas from 2.+3.+... gen.
+C          DO ig=igmin,igmax(ix)
+C C Fg=total-background NaI spectra, factor 2 due to unfolding
+C C Total and background error are assumed to be independent from each 
+C C other, therefore we use SQRT(tot+bck) instead of SQRT(tot)+SQRT(bck)
+C             sFg(ig,ix)=2.*SQRT((TotM+BckM)*Fg(ig,ix))
+C             IF(sFg(ig,ix).GT.sFmax)THEN
+C                isFEg=ig
+C                sFmax=sFg(ig,ix)
+C             ENDIF
+C          ENDDO
+C C The factor 2 due to unfolding is very uncertain, it could be anything...
+C C We treat sFg(ig,ix) from Eg=Eg_min up to gamma energy (isFEg) for maximum 
+C C uncertainty (sFmax) in a special way (we have high sFg around Eg=0)
+C C The Factor 1 is again very uncertain
+C          IF(isFEg.GT.igmin)THEN
+C             DO ig=igmin,isFEg
+C                sFg(ig,ix)=sFmax*(1.+1.*(FLOAT(isFEg)-FLOAT(ig))/FLOAT(isFEg))
+C             ENDDO
+C          ENDIF
 C As a further twist, we will smooth the errors (one-dimensionally) for each
 C first generation spectrum. The smoothing is done over gamma energy intervals 
 C of 3 MeV. This is new for version 1.2 of rhosigchi. Smoothing is performed 

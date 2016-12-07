@@ -1,5 +1,6 @@
 
-      SUBROUTINE rhosigchi(Fg_in,sFg_in,calib,Eg_min,Ex_min,Ex_max)
+      SUBROUTINE rhosigchi(Fg_in,sFg_in,calib,Eg_min,Ex_min,Ex_max,
+     &                     Rho_fin,Sig_fin)
 C Read/write stuff (mama)
 CJEM      COMMON/Sp1Dim/rSPEC(2,0:8191),MAXCH
 CJEM      COMMON/Sp2Dim/rMAT(2,0:4095,0:511),APP(512),XDIM,YDIM
@@ -23,6 +24,8 @@ CJEM  Added some variables and f2py magic lines:
 CJEM  calib contains calibration coefficients in the order (aEg0, aEg1,
 CJEM  aEx0, aEx1), where Ei = aEi1*channel + aEi0
 Cf2py REAL intent(in) :: Fg_in, sFg_in, calib
+      REAL Rho_fin(0:100), Sig_fin(0:100)
+Cf2py REAL intent(out) :: Rho_fin, Sig_fin
       REAL sRho(0:511),sSig(0:511)
       REAL rRho(0:511),rSig(0:511),Sum,Sum2
       REAL Chi(0:100),a1,a0
@@ -676,6 +679,13 @@ C Output of the results
         WRITE(6,53)ig, a0+a1*FLOAT(ig), Sig(nit,ig), sSig(ig)
 53      FORMAT( I5,  F8.1,  E14.3, E12.3)
       ENDDO
+
+
+CJEM  Addition: Putting final iteration of rho and sig in vectors for return:
+      do i = 0, 100
+         Rho_fin(i) = Rho(nit,i)
+         Sig_fin(i) = Sig(nit,i)
+      enddo
 
 
 C Writing matrices  out for mama

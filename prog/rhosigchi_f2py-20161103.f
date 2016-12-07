@@ -202,15 +202,17 @@ c      YDIM=INT((ABS((FLOAT(YDIM) * aEx1 + aEx0 - a0))/ABS(a1)) + 0.5)
 c      XDIM=YDIM + iu0
       XDIM=INT((ABS((FLOAT(XDIM) * aEg1 + aEg0 -a0))/ABS(a1))+0.5)+ iu0
       YDIM=INT((ABS((FLOAT(YDIM) * aEx1 + aEx0 - a0))/ABS(a1)) + 0.5)
+      write(6,*)'XDIM =',XDIM,' YDIM = ',YDIM
 
 c           write(6,*)xdim,ydim
-      imax=10
-      DO j=0,YDIM
-         DO i=0,XDIM
-            IF(Fg(i,j).GT.0..AND.i.GT.imax)imax=i
-            IF(Fg(i,j).LE.0.)Fg(i,j)=0             !Delete negative numbers
-         ENDDO
-      ENDDO
+CJEM      imax=10
+CJEM      DO j=0,YDIM
+CJEM         DO i=0,XDIM
+CJEM            if(Fg(i,j).gt.0)write(6,*)Fg(i,j)
+CJEM            IF(Fg(i,j).GT.0..AND.i.GT.imax)imax=i
+CJEM            IF(Fg(i,j).LE.0.)Fg(i,j)=0             !Delete negative numbers
+CJEM         ENDDO
+CJEM      ENDDO
 
       imax=MIN(imax,XDIM)
       Eg_limit = a0+a1*imax
